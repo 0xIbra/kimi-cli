@@ -88,20 +88,6 @@ def augment_provider_with_env_vars(provider: LLMProvider, model: LLMModel) -> di
                 provider.base_url = base_url
             if api_key := os.getenv("OPENAI_API_KEY"):
                 provider.api_key = SecretStr(api_key)
-            if model_name := os.getenv("OPENAI_MODEL_NAME"):
-                model.model = model_name
-                applied["OPENAI_MODEL_NAME"] = model_name
-            if max_context_size := os.getenv("OPENAI_MODEL_MAX_CONTEXT_SIZE"):
-                model.max_context_size = int(max_context_size)
-                applied["OPENAI_MODEL_MAX_CONTEXT_SIZE"] = max_context_size
-            if capabilities := os.getenv("OPENAI_MODEL_CAPABILITIES"):
-                caps_lower = (cap.strip().lower() for cap in capabilities.split(",") if cap.strip())
-                model.capabilities = set(
-                    cast(ModelCapability, cap)
-                    for cap in caps_lower
-                    if cap in get_args(ModelCapability.__value__)
-                )
-                applied["OPENAI_MODEL_CAPABILITIES"] = capabilities
         case _:
             pass
 
@@ -163,57 +149,20 @@ def create_llm(
         case "openai_legacy":
             from kosong.contrib.chat_provider.openai_legacy import OpenAILegacy
 
-            # Automatically extract reasoning content for models that likely support it.
-            # Most OpenAI-compatible providers that serve reasoning models (e.g. DeepSeek R1, Kimi)
-            # return the thinking trace in a `reasoning_content` field.
-            reasoning_key = None
-            model_lower = model.model.lower()
-            if any(k in model_lower for k in ("kimi", "deepseek", "thinking", "reasoner")):
-                reasoning_key = "reasoning_content"
-
             chat_provider = OpenAILegacy(
                 model=model.model,
                 base_url=provider.base_url,
                 api_key=resolved_api_key,
-                reasoning_key=reasoning_key,
+                reasoning_key=provider.reasoning_key,
             )
-
-            if temperature := os.getenv("OPENAI_MODEL_TEMPERATURE"):
-                gen_kwargs["temperature"] = float(temperature)
-            if top_p := os.getenv("OPENAI_MODEL_TOP_P"):
-                gen_kwargs["top_p"] = float(top_p)
-            if max_tokens := os.getenv("OPENAI_MODEL_MAX_TOKENS"):
-                gen_kwargs["max_tokens"] = int(max_tokens)
-
-            if gen_kwargs:
-                chat_provider = chat_provider.with_generation_kwargs(**cast(Any, gen_kwargs))
-
         case "openai_responses":
             from kosong.contrib.chat_provider.openai_responses import OpenAIResponses
-
-            # Same logic as openai_legacy
-            reasoning_key = None
-            model_lower = model.model.lower()
-            if any(k in model_lower for k in ("kimi", "deepseek", "thinking", "reasoner")):
-                reasoning_key = "reasoning_content"
 
             chat_provider = OpenAIResponses(
                 model=model.model,
                 base_url=provider.base_url,
                 api_key=resolved_api_key,
-                reasoning_key=reasoning_key,
             )
-
-            if temperature := os.getenv("OPENAI_MODEL_TEMPERATURE"):
-                gen_kwargs["temperature"] = float(temperature)
-            if top_p := os.getenv("OPENAI_MODEL_TOP_P"):
-                gen_kwargs["top_p"] = float(top_p)
-            if max_tokens := os.getenv("OPENAI_MODEL_MAX_TOKENS"):
-                gen_kwargs["max_tokens"] = int(max_tokens)
-
-            if gen_kwargs:
-                chat_provider = chat_provider.with_generation_kwargs(**cast(Any, gen_kwargs))
-
         case "anthropic":
             from kosong.contrib.chat_provider.anthropic import Anthropic
 
