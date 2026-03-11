@@ -133,6 +133,19 @@ class MoonshotFetchConfig(BaseModel):
         return v.get_secret_value()
 
 
+class FirecrawlSearchConfig(BaseModel):
+    """Firecrawl Search configuration."""
+
+    base_url: str = "https://api.firecrawl.dev/v1"
+    """Base URL for Firecrawl API."""
+    api_key: SecretStr
+    """API key for Firecrawl service."""
+
+    @field_serializer("api_key", when_used="json")
+    def dump_secret(self, v: SecretStr):
+        return v.get_secret_value()
+
+
 class Services(BaseModel):
     """Services configuration."""
 
@@ -140,6 +153,8 @@ class Services(BaseModel):
     """Moonshot Search configuration."""
     moonshot_fetch: MoonshotFetchConfig | None = None
     """Moonshot Fetch configuration."""
+    firecrawl_search: FirecrawlSearchConfig | None = None
+    """Firecrawl Search configuration (preferred over moonshot_search when set)."""
 
 
 class MCPClientConfig(BaseModel):
